@@ -1,4 +1,5 @@
 env
 .dockerignore
+htmlcov
 Dockerfile
 Dockerfile-prod
