@@ -9,11 +9,8 @@ from project import db
 from project.api.models import User
 
 
-def add_user(username, email):
-    user = User(username=username, email=email)
-    db.session.add(user)
-    db.session.commit()
-    return user
+from sqlalchemy.exc import IntegrityError
+from project.tests.utils import add_user
 
 
 class TestUserService(BaseTestCase):
@@ -26,22 +23,6 @@ class TestUserService(BaseTestCase):
         self.assertEqual(response.status_code, 200)
         self.assertIn('pong!', data['message'])
         self.assertIn('success', data['status'])
-
-    def test_add_user(self):
-        """Ensure a new user can be added to the database."""
-        with self.client:
-            response = self.client.post(
-                '/users',
-                data=json.dumps({
-                    'username': 'michael',
-                    'email': 'michael@mherman.org'
-                }),
-                content_type='application/json',
-            )
-            data = json.loads(response.data.decode())
-            self.assertEqual(response.status_code, 201)
-            self.assertIn('michael@mherman.org was added!', data['message'])
-            self.assertIn('success', data['status'])
 
     def test_add_user_invalid_json(self):
         """Ensure error is thrown if the JSON object is empty."""
@@ -69,31 +50,6 @@ class TestUserService(BaseTestCase):
             data = json.loads(response.data.decode())
             self.assertEqual(response.status_code, 400)
             self.assertIn('Invalid payload.', data['message'])
-            self.assertIn('fail', data['status'])
-
-    def test_add_user_duplicate_email(self):
-        """Ensure error is thrown if the email already exists."""
-        with self.client:
-            self.client.post(
-                '/users',
-                data=json.dumps({
-                    'username': 'michael',
-                    'email': 'michael@mherman.org'
-                }),
-                content_type='application/json',
-            )
-            response = self.client.post(
-                '/users',
-                data=json.dumps({
-                    'username': 'michael',
-                    'email': 'michael@mherman.org'
-                }),
-                content_type='application/json',
-            )
-            data = json.loads(response.data.decode())
-            self.assertEqual(response.status_code, 400)
-            self.assertIn(
-                'Sorry. That email already exists.', data['message'])
             self.assertIn('fail', data['status'])
 
     def test_single_user(self):
@@ -177,6 +133,35 @@ class TestUserService(BaseTestCase):
             self.assertIn(b'All Users', response.data)
             self.assertNotIn(b'<p>No users!</p>', response.data)
             self.assertIn(b'michael', response.data)
+
+    def test_add_user(self):
+        user = add_user('justatest', 'test@test.com')
+        self.assertTrue(user.id)
+        self.assertEqual(user.username, 'justatest')
+        self.assertEqual(user.email, 'test@test.com')
+        self.assertTrue(user.active)
+
+    def test_add_user_duplicate_username(self):
+        add_user('justatest', 'test@test.com')
+        duplicate_user = User(
+            username='justatest',
+            email='test@test2.com',
+        )
+        db.session.add(duplicate_user)
+        self.assertRaises(IntegrityError, db.session.commit)
+
+    def test_add_user_duplicate_email(self):
+        add_user('justatest', 'test@test.com')
+        duplicate_user = User(
+            username='justatest2',
+            email='test@test.com',
+        )
+        db.session.add(duplicate_user)
+        self.assertRaises(IntegrityError, db.session.commit)
+
+    def test_to_json(self):
+        user = add_user('justatest', 'test@test.com')
+        self.assertTrue(isinstance(user.to_json(), dict))
 
 
 if __name__ == '__main__':
