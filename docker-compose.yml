@@ -14,6 +14,7 @@ services:
       - APP_SETTINGS=project.config.DevelopmentConfig
       - DATABASE_URL=postgres://postgres:postgres@flask-db:5432/flask_dev
       - DATABASE_TEST_URL=postgres://postgres:postgres@flask-db:5432/flask_test
+      - SECRET_KEY=my_precious
     depends_on:
       - flask-db
 
